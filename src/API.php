@@ -89,10 +89,15 @@ class API {
 			}
 		}
 
-        if ( isset($args['max_wait_time'] ))
-            $waitfor = $args['max_wait_time'];
+        if ( isset($args['should_wait'] ))
+            $shouldWait = $args['should_wait'];
         else
-            $waitfor = 0;
+            $shouldWait = false;
+
+        if ( isset($args['max_wait_time'] ))
+            $maxWait = $args['max_wait_time'];
+        else
+            $maxWait = 120;
 
 		// Request is new - actually perform the request
 
@@ -102,6 +107,7 @@ class API {
             $info = curl_getinfo($ch);
             curl_close($ch);
 
+            $shouldWait = false;
             //If the request has been rate limited check if we can wait
             if ( $info['http_code'] == 429 ) {
                 $retryIn = 60; //default to 60 seconds
@@ -109,12 +115,14 @@ class API {
                     if(isset($error['retry_after_seconds']))
                         $retryIn = $error['retry_after_seconds'];
                 }
-                if ($waitfor>=0)
-                    sleep($retryIn);
-                $waitfor -= $retryIn;
+                if ($shouldWait && $maxWait >= $retryIn) {
+                    sleep($retryIn + 1);
+                    $maxWait -= $retryIn;
+                    $shouldWait = true;
+                }
             }
 
-        } while ($info['http_code'] == 429 && $waitfor >= $retryIn);
+        } while ($info['http_code'] == 429 && $shouldWait);
 
 
 		// don't try to parse a 500-class error, as it's likely not JSON
