@@ -73,7 +73,7 @@ class API {
 		
 	}
 
-	public function get_data( $suffix, $args = array() ) {
+	public function get_data( $suffix, $args = array()) {
 				
 		// Construct request:
 		$api_request = $this->api_endpoint . $suffix;
@@ -89,12 +89,33 @@ class API {
 			}
 		}
 
-		// Request is new - actually perform the request 
+        if ( isset($args['max_wait_time'] ))
+            $waitfor = $args['max_wait_time'];
+        else
+            $waitfor = 0;
 
-		$ch = $this->__create_ch($api_request);
-		$json_string = curl_exec($ch);
-		$info = curl_getinfo($ch);
-		curl_close($ch);
+		// Request is new - actually perform the request
+
+        do {
+            $ch = $this->__create_ch($api_request);
+            $json_string = curl_exec($ch);
+            $info = curl_getinfo($ch);
+            curl_close($ch);
+
+            //If the request has been rate limited check if we can wait
+            if ( $info['http_code'] == 429 ) {
+                $retryIn = 60; //default to 60 seconds
+                foreach(json_decode($json_string, true)['errors'] as $error) {
+                    if(isset($error['retry_after_seconds']))
+                        $retryIn = $error['retry_after_seconds'];
+                }
+                if ($waitfor>=0)
+                    sleep($retryIn);
+                $waitfor -= $retryIn;
+            }
+
+        } while ($info['http_code'] == 429 && $waitfor >= $retryIn);
+
 
 		// don't try to parse a 500-class error, as it's likely not JSON
 		if ( $info['http_code'] >= 500 ) {
