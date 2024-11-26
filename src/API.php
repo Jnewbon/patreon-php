@@ -97,12 +97,12 @@ class API {
 
 		// don't try to parse a 500-class error, as it's likely not JSON
 		if ( $info['http_code'] >= 500 ) {
-		  return $this->add_to_request_cache($api_request_hash, $json_string);
+		  return $json_string;
 		}
 		
 		// don't try to parse a 400-class error, as it's likely not JSON
 		if ( $info['http_code'] >= 400 ) {
-		  return $this->add_to_request_cache($api_request_hash, $json_string);
+		  return $json_string;
 		}
 
 		// Parse the return according to the format set by api_return_format variable
